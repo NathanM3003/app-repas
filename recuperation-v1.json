@@ -1,0 +1,315 @@
+{
+ "format": "app-repas",
+ "type": "sauvegarde",
+ "schema": 1,
+ "source": "v1",
+ "app": "1.0",
+ "exporte_le": "2026-11-17T19:38:29Z",
+ "etat": {
+  "statuts": {}
+ },
+ "semaines": {
+  "sem-2026-11-23": {
+   "id": "sem-2026-11-23",
+   "debut": "2026-11-23",
+   "mois": "2026-11",
+   "reglages": {
+    "cible": 15,
+    "jours": [
+     "lun",
+     "ven"
+    ],
+    "nouvelles": 1,
+    "rapides": 2
+   },
+   "frigo": [],
+   "confirmee": false,
+   "coches": [],
+   "cree": 1794944274811,
+   "mot": "Cette semaine, tu as 16 portions à environ 2,60 $ en moyenne, avec la lime et la coriandre qui reviennent dans le chili blanc, le chana masala et les huevos rancheros pour limiter le gaspillage.",
+   "creneaux": [
+    {
+     "type": "batch",
+     "jour": "lun",
+     "id": "chili-blanc-poulet"
+    },
+    {
+     "type": "batch",
+     "jour": "ven",
+     "id": "chana-masala",
+     "portions": null
+    },
+    {
+     "type": "rapide",
+     "id": "huevos-rancheros"
+    },
+    {
+     "type": "rapide",
+     "id": "riz-frit-jambon"
+    }
+   ]
+  }
+ },
+ "notes": [],
+ "recettes": {
+  "chana-masala": {
+   "id": "chana-masala",
+   "nom": "Chana masala et riz basmati",
+   "emoji": "🍛",
+   "teinte": 30,
+   "cuisine": "Indien",
+   "categorie": "batch",
+   "proteine": "Pois chiches",
+   "statut": "essayer",
+   "pourquoi": "C'est un plat végé pas cher qui se réchauffe super bien au micro-ondes et qui change de tes chilis et de tes pâtes.",
+   "temps_actif": 30,
+   "temps_total": 55,
+   "portions": 6,
+   "prix_portion": 2.5,
+   "congele": true,
+   "micro_ondes": true,
+   "piquant": "doux",
+   "assiette": {
+    "legumes": "Épinards et tomates dans la sauce, oignon, plus des carottes rôties à côté",
+    "feculent": "Riz basmati",
+    "proteine": "Pois chiches"
+   },
+   "ingredients": [
+    {
+     "nom": "Pois chiches (540 ml)",
+     "qte": 3,
+     "unite": "boîte",
+     "rayon": "sec",
+     "groupe": null
+    },
+    {
+     "nom": "Oignon",
+     "qte": 2,
+     "unite": "",
+     "rayon": "fl",
+     "groupe": null
+    },
+    {
+     "nom": "Ail",
+     "qte": 3,
+     "unite": "gousse",
+     "rayon": "fl",
+     "groupe": null
+    },
+    {
+     "nom": "Gingembre frais",
+     "qte": 1,
+     "unite": "morceau",
+     "rayon": "fl",
+     "groupe": null
+    },
+    {
+     "nom": "Tomates en dés (796 ml)",
+     "qte": 1,
+     "unite": "boîte",
+     "rayon": "sec",
+     "groupe": null
+    },
+    {
+     "nom": "Pâte de tomate",
+     "qte": 30,
+     "unite": "ml",
+     "rayon": "sec",
+     "groupe": null
+    },
+    {
+     "nom": "Épinards frais (284 g)",
+     "qte": 2,
+     "unite": "paquet",
+     "rayon": "fl",
+     "groupe": null
+    },
+    {
+     "nom": "Garam masala",
+     "qte": 15,
+     "unite": "ml",
+     "rayon": "mai",
+     "groupe": null
+    },
+    {
+     "nom": "Cumin moulu",
+     "qte": 10,
+     "unite": "ml",
+     "rayon": "mai",
+     "groupe": null
+    },
+    {
+     "nom": "Coriandre moulue",
+     "qte": 10,
+     "unite": "ml",
+     "rayon": "mai",
+     "groupe": null
+    },
+    {
+     "nom": "Curcuma",
+     "qte": 5,
+     "unite": "ml",
+     "rayon": "mai",
+     "groupe": null
+    },
+    {
+     "nom": "Paprika doux",
+     "qte": 5,
+     "unite": "ml",
+     "rayon": "mai",
+     "groupe": null
+    },
+    {
+     "nom": "Huile végétale",
+     "qte": 30,
+     "unite": "ml",
+     "rayon": "mai",
+     "groupe": null
+    },
+    {
+     "nom": "Sel",
+     "qte": null,
+     "unite": "",
+     "rayon": "mai",
+     "groupe": null
+    },
+    {
+     "nom": "Jus de citron",
+     "qte": 15,
+     "unite": "ml",
+     "rayon": "sau",
+     "groupe": null
+    },
+    {
+     "nom": "Riz basmati",
+     "qte": 1.5,
+     "unite": "tasse",
+     "rayon": "sec",
+     "groupe": "Riz"
+    },
+    {
+     "nom": "Carottes",
+     "qte": 6,
+     "unite": "",
+     "rayon": "fl",
+     "groupe": "Carottes rôties"
+    },
+    {
+     "nom": "Huile végétale",
+     "qte": 15,
+     "unite": "ml",
+     "rayon": "mai",
+     "groupe": "Carottes rôties"
+    },
+    {
+     "nom": "Cumin moulu",
+     "qte": 2,
+     "unite": "ml",
+     "rayon": "mai",
+     "groupe": "Carottes rôties"
+    },
+    {
+     "nom": "Sel",
+     "qte": null,
+     "unite": "",
+     "rayon": "mai",
+     "groupe": "Carottes rôties"
+    }
+   ],
+   "etapes": [
+    {
+     "picto": "knife",
+     "duree": 10,
+     "feu": null,
+     "texte": "Couper les oignons en petits dés. Hacher l'ail. Râper le gingembre (environ 1 c. à soupe). Égoutter et rincer les pois chiches.",
+     "conseil": null
+    },
+    {
+     "picto": "knife",
+     "duree": 5,
+     "feu": null,
+     "texte": "Peler les carottes et les couper en bâtonnets d'environ 1 cm d'épaisseur. Les mélanger avec 15 ml d'huile, 2 ml de cumin et une pincée de sel sur une plaque.",
+     "conseil": "Des bâtonnets de même grosseur rôtissent en même temps."
+    },
+    {
+     "picto": "oven",
+     "duree": 25,
+     "feu": null,
+     "four": 425,
+     "texte": "Mettre la plaque de carottes au four préchauffé à 425 °F. Cuire 25 min, en les retournant à mi-cuisson, jusqu'à ce qu'elles soient tendres et dorées sur les bords.",
+     "conseil": null
+    },
+    {
+     "picto": "pot",
+     "duree": 6,
+     "feu": 6,
+     "texte": "Pendant ce temps : chauffer 30 ml d'huile dans un grand chaudron. Ajouter les oignons et cuire en brassant jusqu'à ce qu'ils soient mous et dorés.",
+     "conseil": null
+    },
+    {
+     "picto": "pot",
+     "duree": 2,
+     "feu": 5,
+     "texte": "Ajouter l'ail, le gingembre, le garam masala, le cumin, la coriandre, le curcuma, le paprika et la pâte de tomate. Brasser 1 à 2 min jusqu'à ce que ça sente bon.",
+     "conseil": "Si ça colle au fond, ajouter une cuillérée d'eau."
+    },
+    {
+     "picto": "pot",
+     "duree": 5,
+     "feu": 9,
+     "texte": "Ajouter les tomates avec leur jus et les pois chiches. Ajouter 1 tasse d'eau et une pincée de sel. Porter à ébullition.",
+     "conseil": null
+    },
+    {
+     "picto": "pot",
+     "duree": 20,
+     "feu": 3,
+     "texte": "Baisser à 3 et laisser mijoter 20 min sans couvercle, en brassant de temps en temps. Écraser quelques pois chiches contre la paroi avec le dos de la cuillère pour épaissir la sauce.",
+     "conseil": "Trop épais ? Ajouter un peu d'eau. Trop liquide ? Mijoter 5 min de plus."
+    },
+    {
+     "picto": "pot",
+     "duree": 20,
+     "feu": null,
+     "texte": "Pendant que ça mijote : rincer le riz et le mettre dans une casserole avec 2 ¼ tasses d'eau et une pincée de sel. Porter à ébullition, couvrir, baisser à 2 et cuire 15 min sans ouvrir le couvercle.",
+     "conseil": "Laisser reposer 5 min, couvert : le riz sera plus léger."
+    },
+    {
+     "picto": "pot",
+     "duree": 3,
+     "feu": 3,
+     "texte": "Ajouter les épinards par poignées dans la sauce. Brasser jusqu'à ce qu'ils soient tombés, environ 3 min. Ajouter le jus de citron, goûter et saler au besoin.",
+     "conseil": null
+    },
+    {
+     "picto": "box",
+     "duree": 7,
+     "feu": null,
+     "texte": "Laisser tiédir, puis répartir en 6 contenants : le riz d'un côté, les carottes rôties d'un côté, le chana masala sur le reste.",
+     "conseil": "Les carottes se réchauffent bien, mais elles seront plus tendres qu'au sortir du four."
+    },
+    {
+     "picto": "plate",
+     "duree": 2,
+     "feu": null,
+     "texte": "Au moment de manger (frais ou réchauffé), monter l'assiette.",
+     "conseil": null,
+     "service": {
+      "dessous": "Le riz basmati",
+      "a_cote": "Les carottes rôties",
+      "dessus": "Le chana masala"
+     }
+    }
+   ],
+   "conservation": {
+    "frigo_jours": 4,
+    "congelateur_mois": 3,
+    "rechauffage": "Micro-ondes 2-3 min, couvert. Brasser à mi-chemin."
+   },
+   "historique_notes": [],
+   "cree_par": "claude",
+   "cree_le": "2026-11-17"
+  }
+ },
+ "majs": []
+}
