@@ -1,6 +1,6 @@
 /* App repas — service worker : l'app marche hors ligne, et se met à jour quand une nouvelle version est publiée.
    Pour publier une nouvelle version du code : changer VERSION ci-dessous (ex. 1.5.1). */
-const VERSION = "1.5.0";
+const VERSION = "1.5.2";
 const CACHE = "app-repas-" + VERSION;
 const FONTS = "app-repas-polices";
 const CORE = ["./", "./index.html", "./recettes.json", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png"];

@@ -144,6 +144,20 @@ h2.sec span{font-family:var(--body);font-size:13px;font-weight:600;color:var(--m
 .tab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
 .chip.sugg{border-style:dashed;color:var(--muted)}
+.chip.unk{border-style:dashed;border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
+.seg.wk{flex-wrap:wrap}
+.seg.wk button{flex:1 1 22%;font-size:12.5px;line-height:1.2;padding:8px 2px}
+.seg.wk small{display:block;font-weight:600;color:var(--muted);font-size:11.5px;margin-top:2px}
+.warnc{color:var(--amber)}
+.fq{background:var(--accent-soft);border-radius:14px;padding:12px;display:grid;gap:8px}
+.fq-t{margin:0;font-size:15px}
+.fq .txt{background:var(--card);font-size:18px;font-weight:700;max-width:140px}
+.fq-u{align-self:center;font-weight:600;color:var(--muted)}
+.fq .chips{margin-top:0}
+.fq .row{margin-top:0}
+.seg.fu{background:var(--card)}
+.seg.fu button{font-size:13px;padding:7px 2px}
+.seg.fu button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .rlist{display:grid;gap:8px;margin-top:14px}
 .rrow{display:flex;gap:12px;align-items:center;padding:8px;border:1px solid var(--line);background:var(--card);border-radius:14px;text-align:left;width:100%}
@@ -293,7 +307,7 @@ textarea{width:100%;margin-top:12px;border:1.5px solid var(--line);background:va
    Banque : recettes.json + fiches importées · Données : ce cellulaire (localStorage)
    Aucune IA dans l'app : Claude intervient par fichiers (Exporter → conversation → Importer)
    ========================================================= */
-const APP_VERSION="1.5.0";
+const APP_VERSION="1.5.2";
 const LS_KEY="appRepas";
 
 /* ---------- Icônes ---------- */
@@ -490,12 +504,65 @@ function pickCurrentWeek(){
 }
 
 /* ---------- Frigo ---------- */
+/* « un peu de brocoli », « 300 g de poulet » → [brocoli], [poulet] : la quantité est ignorée, on garde les mots de l'ingrédient */
+const F_STOP=new Set(["un","une","de","du","des","d","la","le","les","l","peu","reste","restant","restante","quelque","moitie","demi","environ","gros","grosse","petit","petite","bout","boite","paquet","sac","sachet","pot","tasse","g","gr","kg","ml","l","lb","lbs","oz","livre","et","a","au","aux","en","mon","ma","mes","encore","ou","presque","fini","entame","ouvert","ouverte","frigo","congelateur","tranche","morceau","portion","barquette","contenant","plat","cuit","cuite"]);
+function fTokens(t){
+  const s=String(t).replace(/(\d+([.,/]\d+)?)\s*(g|gr|kg|ml|l|lb|lbs|oz)?(?![a-zà-ÿ])/gi," ").replace(/[½¼¾⅓⅔]/g," ");
+  return fKey(s).split(" ").filter(w=>w&&!F_STOP.has(w)&&!/^\d/.test(w));
+}
+const FRIGO_RAY=new Set(["fl","vp","lo","bou","sau","surg"]);
+const tokSet=name=>new Set(fKey(name).split(" "));
+/* Mots de tous les jours → noms dans les fiches */
+const F_SYN={"fromage":["fromage","cheddar","mozzarella","parmesan","feta","ricotta","halloumi","gruyere","suisse","cottage","bocconcini"],"patate":["pomme de terre","patate"],"pomme de terre":["pomme de terre","patate"],"viande hachee":["boeuf hache","porc hache","poulet hache","dinde hachee","veau hache"],"hache":["boeuf hache","porc hache","poulet hache","dinde hachee","veau hache"],"fine herbe":["persil","coriandre","basilic","aneth","ciboulette","menthe"],"herbe":["persil","coriandre","basilic","aneth","ciboulette","menthe"],"salade":["laitue","coeur de romaine","roquette","bebe epinard","melange printanier"],"poisson":["saumon","tilapia","morue","aiglefin","truite","thon","poisson"],"jambon":["jambon"],"saucisse":["saucisse","chorizo","kielbasa"],"creme":["creme"]};
+const fMatch=(t,name)=>{ const tk=fTokens(t); if(!tk.length) return false; const set=tokSet(name);
+  const alts=F_SYN[tk.join(" ")]; if(alts) return alts.some(a=>fKey(a).split(" ").every(w=>set.has(w)));
+  return tk.every(w=>set.has(w)); };
+/* Un élément du frigo = {nom, qte, unite} ; unite : "g", "ml", "unité" ou une unité de recette (botte, paquet…) ; qte null = « un peu / je ne sais pas » */
+const fNorm=t=>typeof t==="string"?parseFrigo(t):t;   // ancien format (texte) → {nom,qte,unite}
+const fNom=t=>fNorm(t).nom;
+function fQty(q,u){
+  if(q===null||q===undefined||q==="") return "";
+  if(u==="g") return q>=1000?num(Math.round(q/100)/10)+" kg":num(Math.round(q))+" g";
+  if(u==="ml") return q>=1000?num(Math.round(q/100)/10)+" L":num(Math.round(q))+" ml";
+  if(u==="unité"||!u) return frac(q);
+  return frac(q)+" "+(q>1.1?PL[u]||u:u);
+}
+const fLabel=t=>{ const o=fNorm(t); const q=fQty(o.qte,o.unite); return o.nom+(q?" · "+q:""); };
 function frigoHits(r,frigo){
   if(!r||!frigo||!frigo.length) return [];
-  const keys=r.ingredients.filter(i=>i.rayon!=="mai").map(i=>" "+fKey(i.nom)+" ");
-  return frigo.filter(t=>{ const k=fKey(t); return k&&keys.some(x=>x.includes(" "+k+" ")); });
+  const names=r.ingredients.filter(i=>FRIGO_RAY.has(i.rayon)).map(i=>i.nom);
+  return frigo.map(fNom).filter(t=>names.some(n=>fMatch(t,n)));
 }
-const inFrigo=(name,frigo)=>!!(frigo&&frigo.length)&&frigo.some(t=>{const k=fKey(t);return k&&(" "+fKey(name)+" ").includes(" "+k+" ");});
+const frigoKnown=t=>ORDER.some(id=>BANK[id]&&statusOf(id)!=="refusee"&&frigoHits(R(id),[t]).length);
+const FRAC_CH={"½":.5,"¼":.25,"¾":.75,"⅓":1/3,"⅔":2/3};
+function numVal(v){ v=String(v||"").trim().replace(",","."); if(!v) return null; if(FRAC_CH[v]!==undefined) return FRAC_CH[v];
+  let m=v.match(/^(\d+)\s+(\d+)\/(\d+)$/); if(m) return +m[1]+ +m[2]/+m[3];
+  m=v.match(/^(\d+)\s*([½¼¾⅓⅔])$/); if(m) return +m[1]+FRAC_CH[m[2]];
+  m=v.match(/^(\d+)\/(\d+)$/); if(m) return +m[1]/+m[2];
+  const x=+v; return isFinite(x)&&x>0?x:null; }
+/* « 300 g de poulet » → {nom:"Poulet", qte:300, unite:"g"} ; « un peu de brocoli » → {nom:"Brocoli"} */
+function parseFrigo(txt){
+  let t=String(txt).trim(), qte=null, unite=null;
+  const m=t.match(/(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?\s*[½¼¾⅓⅔]?|[½¼¾⅓⅔])\s*(kg|gr|g|ml|l|lb|lbs|tasses?)?(?![a-zà-ÿ])/i);
+  if(m){ let q=numVal(m[1].replace(/\s+(?=[½¼¾⅓⅔])/,"")); let u=(m[2]||"").toLowerCase();
+    if(q){ if(u==="kg"){q*=1000;u="g";} else if(u==="g"||u==="gr") u="g"; else if(u==="lb"||u==="lbs"){q=Math.round(q*454);u="g";} else if(u==="l"){q*=1000;u="ml";} else if(u.startsWith("tasse")){q*=250;u="ml";} else if(u!=="ml") u="unité";
+      qte=q; unite=u; t=t.slice(0,m.index)+" "+t.slice(m.index+m[0].length); } }
+  let nom=t.replace(/\s+/g," ").trim();
+  for(let k=0;k<3;k++) nom=nom.replace(/^(un|une)\s+peu\s+(de|d['’])\s*|^(des\s+|les\s+)?restes?\s+(de|d['’])\s*|^un\s+(bout|morceau|reste)\s+(de|d['’])\s*|^(de\s+la|de\s+l['’]|du|des|de|d['’]|le|la|les|l['’]|mon|ma|mes)\s+|^(d['’]|l['’])/i,"").trim();
+  nom=nom.slice(0,40); nom=nom.charAt(0).toUpperCase()+nom.slice(1);
+  return {nom,qte,unite};
+}
+/* Unité à demander : celle que tes recettes utilisent le plus pour cet aliment */
+function unitGuess(nom){
+  const cnt={};
+  ORDER.forEach(id=>{ const r=R(id); if(!r) return; r.ingredients.forEach(i=>{ if(!FRIGO_RAY.has(i.rayon)||i.qte===null||i.qte===undefined||!fMatch(nom,i.nom)) return;
+    const c=unitClass(i.unite||""); const k=c==="vol"?"ml":c==="poids"?"g":(i.unite||"unité"); cnt[k]=(cnt[k]||0)+1; }); });
+  const best=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+  const unite=best[0]||"g";
+  return {unite,opts:[...new Set([unite,...best.slice(1,2),"g","ml","unité"])].slice(0,4)};
+}
+const U_LABEL=u=>u==="unité"?"unités":u==="g"?"grammes":u==="ml"?"ml":(PL[u]||u+"s");
+const U_QUICK={g:[100,250,500,1000],ml:[60,125,250,500],"unité":[.5,1,2,3]};
 /* Idées pour le frigo : ce qui a sûrement dépassé la semaine passée (légume entier pas tout utilisé, botte, paquet…) */
 function frigoIdeas(debut){
   const prev=Object.keys(S.weeks).filter(id=>S.weeks[id].debut<debut).sort().pop(); if(!prev) return [];
@@ -526,14 +593,29 @@ function groceries(w){
     });
   });
   const items=[...m.values()];
+  const partTxt=p=>{ if(!p.u){ const c=Math.ceil(p.q-1e-6); return Math.abs(c-p.q)>.01?String(c):frac(p.q);} return unitText(p.q,p.u); };
+  const fr=((w&&w.frigo)||[]).map(fNorm).map(t=>({...t,left:t.qte}));
   items.forEach(it=>{
     const parts=Object.values(it.parts);
-    it.txt=parts.map(p=>{ if(!p.u){ const c=Math.ceil(p.q-1e-6); return Math.abs(c-p.q)>.01?String(c):frac(p.q);} return unitText(p.q,p.u); }).join(" + ")||"au goût";
+    it.txt=parts.map(partTxt).join(" + ")||"au goût";
     it.used=parts.filter(p=>!p.u&&Math.abs(Math.ceil(p.q-1e-6)-p.q)>.01).map(p=>frac(p.q)+" utilisé"+(p.q>1?"s":"")).join("");
     if(it.vague&&parts.length) it.txt+=" + au goût";
-    it.fr=it.ray!=="mai"&&inFrigo(it.key,w&&w.frigo);
+    it.fst=null;
+    if(!FRIGO_RAY.has(it.ray)) return;
+    const ms=fr.filter(t=>fMatch(t.nom,it.key)); if(!ms.length) return;
+    it.have=ms.map(t=>fQty(t.qte,t.unite)||"un peu").join(" + ");
+    const rem={}; Object.entries(it.parts).forEach(([c,p])=>{rem[c]=p.q;}); let done=false;
+    ms.forEach(t=>{ if(t.qte===null||t.qte===undefined||!(t.left>0)) return;
+      const c=t.unite==="g"?"poids":t.unite==="ml"?"vol":"u:"+(t.unite==="unité"?"":t.unite);
+      if(rem[c]===undefined) return; const use=Math.min(rem[c],t.left); rem[c]-=use; t.left-=use; done=true; });
+    if(!done){ it.fst="check"; return; }                       // quantité inconnue ou autre unité : à vérifier
+    const rest=Object.entries(it.parts).map(([c,p])=>({u:p.u,q:rem[c]})).filter(x=>x.q>1e-6);
+    if(!rest.length){ it.fst="ok"; return; }                    // assez au frigo
+    it.fst="buy"; it.need=it.txt; it.txt=rest.map(partTxt).join(" + ");  // acheter la différence
+    it.used=`il en faut ${it.need} · ${it.have} au frigo`;
   });
-  return {items:items.filter(i=>i.ray!=="mai"&&!i.fr),frigo:items.filter(i=>i.fr),home:items.filter(i=>i.ray==="mai")};
+  const inFr=i=>i.fst==="ok"||i.fst==="check";
+  return {items:items.filter(i=>i.ray!=="mai"&&!inFr(i)),frigo:items.filter(inFr),home:items.filter(i=>i.ray==="mai")};
 }
 
 /* ---------- Rendu ---------- */
@@ -577,8 +659,8 @@ function vSemaine(){
   const mot=w.gen==="app"?motLocal(w):w.mot; if(mot) h+=`<p class="mot">${ic("spark","sm")}<span>${esc(mot)}</span></p>`;
   if(w.frigo&&w.frigo.length){
     const ids=slotIds(w); const used=w.frigo.filter(t=>ids.some(id=>frigoHits(R(id),[t]).length)); const not=w.frigo.filter(t=>!used.includes(t));
-    h+=`<div class="notice ok">${ic("fridge")}<span><b>Ton frigo :</b> ${used.length?"utilisé dans le plan : "+esc(used.join(", ")):"aucune recette ne l'utilise"}${not.length?`<br><small>Pas utilisé : ${esc(not.join(", "))}</small>`:""}</span></div>`;
-  }
+    h+=`<div class="notice ok">${ic("fridge")}<span style="flex:1"><b>Ton frigo :</b> ${used.length?"utilisé dans le plan : "+esc(used.map(fLabel).join(", ")):"aucune recette ne l'utilise"}${not.length?`<br><small>Pas utilisé : ${esc(not.map(fLabel).join(", "))}</small>`:""}</span><button class="btn soft small" data-act="fopen">Modifier</button></div>`;
+  } else h+=`<div class="notice">${ic("fridge")}<span>Il te reste des choses au frigo ? <button class="lk" data-act="fopen">Les ajouter</button> : la liste d'épicerie en tiendra compte.</span></div>`;
   let hintDone=false;
   const firstRap=w.creneaux.findIndex(x=>x.type!=="batch");
   w.creneaux.forEach((s,i)=>{
@@ -591,6 +673,7 @@ function vSemaine(){
   if(w.confirmee) h+=`<div class="confirm-box"><div class="done">${ic("check")} Semaine confirmée</div><p>La liste d'épicerie est figée. Les cartes ne se remplacent plus.</p><div class="row"><button class="btn primary" data-nav="epicerie">${ic("cart")} Voir l'épicerie</button><button class="btn ghost" data-act="unconfirm">Modifier</button></div></div>`;
   else h+=`<div class="confirm-box"><p>Ça te convient ? Confirme pour figer le plan et préparer la liste d'épicerie.</p><button class="btn primary block" data-act="confirm">${ic("check")} Confirmer la semaine</button></div>`;
   h+=`<div class="row" style="margin-top:12px"><button class="btn ghost block" data-act="gen">${ic("spark")} Générer une semaine</button></div>`;
+  h+=`<div class="row" style="margin-top:6px;justify-content:center"><button class="btn small" style="background:transparent;color:var(--muted)" data-act="delweek">${ic("x","sm")} Supprimer cette semaine</button></div>`;
   h+=weeksList();
   return h;
 }
@@ -626,10 +709,11 @@ function vEpicerie(){
   let h=`<header class="top"><p class="eyebrow">Semaine du ${dLong(parseIso(w.debut))} · ${slotIds(w).length} recettes</p><h1>Épicerie</h1><p class="sub">Triée dans l'ordre des rayons. Coche en passant.</p></header>
   <div class="prog"><div class="bar"><i style="width:${all.length?done/all.length*100:0}%"></i></div><b>${done} / ${all.length}</b></div>`;
   if(!w.confirmee) h+=`<div class="notice">${ic("info")}<span>Brouillon : la liste suit les changements du plan. Confirme ta semaine pour la figer.</span></div>`;
-  h+=`<div class="row" style="margin-top:12px"><button class="btn soft small" data-act="copy">${ic("copy","sm")} Copier la liste</button></div>`;
+  h+=`<div class="row" style="margin-top:12px"><button class="btn soft small" data-act="copy">${ic("copy","sm")} Copier la liste</button><button class="btn ghost small" data-act="fopen">${ic("fridge","sm")} Mon frigo</button></div>`;
   const li=it=>`<li class="${ck.has(it.key)?"checked":""}"><label><input type="checkbox" data-check="${esc(it.key)}" ${ck.has(it.key)?"checked":""}><span class="gq">${esc(it.txt)}${it.used?`<small>${esc(it.used)}</small>`:""}</span><span class="gn">${esc(it.n)}<small>${esc(it.src.join(" · "))}</small></span></label></li>`;
   const sortC=a=>a.sort((x,y)=>ck.has(x.key)-ck.has(y.key));
-  if(frigo.length) h+=`<h2 class="sec">Déjà dans ton frigo ? <span>${frigo.length}</span></h2><p class="sub" style="margin:-4px 0 10px">Tu l'as noté avant de générer. Coche si tu en as assez, sinon achète la différence.</p><ul class="glist">${sortC(frigo).map(li).join("")}</ul>`;
+  const fli=it=>`<li class="${ck.has(it.key)?"checked":""}"><label><input type="checkbox" data-check="${esc(it.key)}" ${ck.has(it.key)?"checked":""}><span class="gq">${it.fst==="ok"?"Rien à acheter":esc(it.txt)}<small>${it.fst==="ok"?"il en faut "+esc(it.txt):"vérifie la quantité"}</small></span><span class="gn">${esc(it.n)}<small>Au frigo : ${esc(it.have)} · ${esc(it.src.join(" · "))}</small></span></label></li>`;
+  if(frigo.length) h+=`<h2 class="sec">Déjà dans ton frigo <span>${frigo.length}</span></h2><p class="sub" style="margin:-4px 0 10px">« Rien à acheter » : tu en as assez. « Vérifie » : tu n'as pas donné de quantité. Ce qu'il manque est resté dans les rayons, avec la différence à acheter.</p><ul class="glist">${sortC(frigo).map(fli).join("")}</ul>`;
   RAYONS.forEach(([k,label])=>{ const g=sortC(items.filter(i=>i.ray===k)); if(!g.length) return;
     h+=`<h2 class="sec">${label} <span>${g.length}</span></h2><ul class="glist">${g.map(li).join("")}</ul>`; });
   const other=items.filter(i=>!RAYONS.some(r=>r[0]===i.ray)); if(other.length) h+=`<h2 class="sec">Autres <span>${other.length}</span></h2><ul class="glist">${sortC(other).map(li).join("")}</ul>`;
@@ -893,10 +977,13 @@ document.addEventListener("pointercancel",endSheetDrag);
 /* ---------- Générer ma semaine ---------- */
 let G=null;
 function defaultStart(){ const now=new Date(); const m=mondayOf(now); return (now.getDay()===0||now.getDay()>=5)?addDays(m,7):m; }
+function weekOpts(){ const m=mondayOf(new Date()); return [0,1,2,3].map(k=>iso(addDays(m,7*k))); }
+function firstFreeWeek(){ const d=iso(addDays(mondayOf(new Date()),7)); return weekOpts().find(o=>o>=d&&!S.weeks["sem-"+o])||d; }
 function openGen(){
   const last=Object.values(S.weeks).sort((a,b)=>a.debut<b.debut?1:-1)[0];
   const base=last?last.reglages:{jours:["mar","jeu"],rapides:2,nouvelles:1,cible:15};
-  G={...clone(base),debut:iso(defaultStart()),frigo:[]}; drawGen();
+  G={...clone(base),debut:firstFreeWeek(),frigo:[]};
+  FE={list:G.frigo,debut:G.debut,pending:null,queue:[],redraw:f=>drawGen(f)}; drawGen();
 }
 let ING_LIST=null;
 function ingList(){ // suggestions pour le champ frigo : ingrédients frais de la banque
@@ -905,35 +992,89 @@ function ingList(){ // suggestions pour le champ frigo : ingrédients frais de l
   return ING_LIST=[...s.values()].sort((a,b)=>a.localeCompare(b,"fr"));
 }
 function drawGen(focusFrigo){
-  const m=mondayOf(new Date()); const opts=[iso(m),iso(addDays(m,7))];
+  const opts=weekOpts(); const WL=["Cette semaine","Prochaine","Dans 2 sem.","Dans 3 sem."];
   const exists=S.weeks["sem-"+G.debut];
   const nTest=ORDER.filter(id=>BANK[id]&&["nouvelle","essayer"].includes(statusOf(id))&&R(id).categorie!=="accompagnement").length;
-  const ideas=frigoIdeas(G.debut).filter(t=>!G.frigo.some(f=>fKey(f)===fKey(t)));
+  FE.debut=G.debut;
   sheet(`<h2>Générer ma semaine</h2><p class="sub">L'app compose le plan avec tes recettes, tes notes et ce qu'il reste dans ton frigo.</p>
-  <fieldset class="field"><legend>Semaine du</legend><div class="seg">${opts.map((o,j)=>`<button data-start="${o}" aria-pressed="${G.debut===o}">${j?"Prochaine":"Cette semaine"} · ${dLong(parseIso(o))}</button>`).join("")}</div></fieldset>
-  <fieldset class="field"><legend>Dans mon frigo <small>(facultatif)</small></legend>
-   <div class="frigo-in"><input id="frigo" class="txt" list="ingl" placeholder="Ex. poivron, crème sure, poulet" autocomplete="off" enterkeyhint="done" aria-label="Ingrédient à utiliser"><button class="btn soft small" data-act="fadd">Ajouter</button></div>
-   <datalist id="ingl">${ingList().map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
-   ${G.frigo.length?`<div class="chips">${G.frigo.map(t=>`<button class="chip" data-frm="${esc(t)}" aria-pressed="true" aria-label="Retirer ${esc(t)}">${esc(t)} ${ic("x","sm")}</button>`).join("")}</div>`:""}
-   ${ideas.length?`<p class="small-note">Il te reste peut-être (semaine passée) :</p><div class="chips" style="margin-top:6px">${ideas.map(t=>`<button class="chip sugg" data-fsug="${esc(t)}">+ ${esc(t)}</button>`).join("")}</div>`:""}
-   <p class="small-note">Les recettes qui s'en servent passent en premier, et ces ingrédients vont dans « Déjà dans ton frigo ? » sur la liste.</p>
-  </fieldset>
+  <fieldset class="field"><legend>Semaine du</legend><div class="seg wk">${opts.map((o,j)=>`<button data-start="${o}" aria-pressed="${G.debut===o}">${WL[j]}<small>${dLong(parseIso(o))}${S.weeks["sem-"+o]?" ✓":""}</small></button>`).join("")}</div><p class="small-note">✓ = déjà planifiée</p></fieldset>
+  <fieldset class="field"><legend>Dans mon frigo <small>(facultatif)</small></legend>${frigoEditor()}</fieldset>
   <fieldset class="field"><legend>Jours de batch (choisis-en 2)</legend><div class="days">${DAYS.map(([k,l,n])=>`<button data-day="${k}" aria-pressed="${G.jours.includes(k)}" aria-label="${n}">${l}</button>`).join("")}</div></fieldset>
   <fieldset class="field"><legend>Repas rapides</legend><div class="seg">${[2,3].map(n=>`<button data-rap="${n}" aria-pressed="${G.rapides===n}">${n}</button>`).join("")}</div></fieldset>
   <fieldset class="field"><legend>Recettes à essayer <small>(${nTest} dans ta banque)</small></legend><div class="seg">${[0,1,2].map(n=>`<button data-nouv="${n}" aria-pressed="${G.nouvelles===n}">${n}</button>`).join("")}</div></fieldset>
   <div class="stepper"><span><b>Portions visées</b></span><div class="ctrl"><button data-act="tminus" aria-label="Moins">${ic("minus")}</button><output>${G.cible}</output><button data-act="tplus" aria-label="Plus">${ic("plus")}</button></div></div>
   ${exists?`<div class="notice warn">${ic("info")}<span>Tu as déjà une semaine du ${dLong(parseIso(G.debut))}${exists.confirmee?" (confirmée)":""} : elle sera remplacée.</span></div>`:""}
   <button class="btn primary block" data-act="dogen" ${G.jours.length!==2?"disabled":""}>${ic("spark")} Générer</button>`);
-  if(focusFrigo){ const f=$("#frigo"); if(f) f.focus(); }
+  focusFE(focusFrigo);
+}
+/* ---------- Frigo : éditeur (aliment → quantité) ---------- */
+let FE=null; // {list, debut, pending:{nom,qte,unite,opts,idx}|null, queue:[], redraw}
+function focusFE(f){ if(!f) return; const el=f==="q"?$("#fqv"):$("#frigo"); if(el) el.focus(); }
+function frigoEditor(){
+  const L=FE.list; const P=FE.pending;
+  const ideas=frigoIdeas(FE.debut).filter(t=>!L.some(f=>fKey(fNom(f))===fKey(t)));
+  const unk=L.filter(t=>!frigoKnown(t));
+  let h="";
+  if(P){
+    const quick=U_QUICK[P.unite]||[.5,1,2];
+    h+=`<div class="fq"><p class="fq-t">Combien de <b>${esc(P.nom.toLowerCase())}</b> ?</p>
+     <div class="frigo-in"><input id="fqv" class="txt" inputmode="decimal" enterkeyhint="done" value="${P.qte!==null&&P.qte!==undefined?esc(num(Math.round(P.qte*100)/100)):""}" placeholder="Quantité" aria-label="Quantité"><span class="fq-u">${esc(U_LABEL(P.unite))}</span></div>
+     <div class="seg fu">${P.opts.map(u=>`<button data-fu="${esc(u)}" aria-pressed="${P.unite===u}">${esc(U_LABEL(u))}</button>`).join("")}</div>
+     <div class="chips">${quick.map(q=>`<button class="chip" data-fqq="${q}">${esc(fQty(q,P.unite))}</button>`).join("")}</div>
+     <div class="row" style="margin-top:10px"><button class="btn primary small" data-act="fqok">${ic("check","sm")} ${P.idx!==null?"Modifier":"Ajouter"}</button><button class="btn ghost small" data-act="fqskip">Un peu / je sais pas</button>${P.idx!==null?`<button class="btn small" style="background:transparent;color:var(--tomato)" data-act="fqdel">Retirer</button>`:`<button class="btn small" style="background:transparent;color:var(--muted)" data-act="fqcancel">Annuler</button>`}</div></div>`;
+  } else {
+    h+=`<div class="frigo-in"><input id="frigo" class="txt" list="ingl" placeholder="Un aliment, ex. brocoli, poulet, lait" autocomplete="off" enterkeyhint="next" aria-label="Aliment dans mon frigo"><button class="btn soft small" data-act="fadd">Ajouter</button></div>
+     <datalist id="ingl">${ingList().map(n=>`<option value="${esc(n)}">`).join("")}</datalist>`;
+  }
+  if(L.length) h+=`<div class="chips">${L.map((t,i)=>{const ok=!unk.includes(t);return `<button class="chip ${ok?"":"unk"}" data-fed="${i}" aria-pressed="${ok}" aria-label="Modifier ${esc(fLabel(t))}">${ok?"":"? "}${esc(fLabel(t))}</button>`}).join("")}</div><p class="small-note">Touche un aliment pour changer sa quantité ou le retirer.</p>`;
+  if(unk.length) h+=`<p class="small-note warnc">? = aucune de tes recettes n'utilise « ${esc(unk.map(fNom).join(" », « "))} ». Essaie un nom simple (ex. poulet, brocoli, crème sure).</p>`;
+  if(ideas.length&&!P) h+=`<p class="small-note">Il te reste peut-être (semaine passée) :</p><div class="chips" style="margin-top:6px">${ideas.map(t=>`<button class="chip sugg" data-fsug="${esc(t)}">+ ${esc(t)}</button>`).join("")}</div>`;
+  if(!L.length&&!P) h+=`<p class="small-note">Écris un aliment, puis l'app te demande la quantité (g, ml ou unités selon l'aliment). Les recettes qui s'en servent passent en premier, et la liste d'épicerie soustrait ce que tu as déjà.</p>`;
+  return h;
+}
+function openPending(txt,idx=null){
+  const p=idx!==null?{...fNorm(FE.list[idx])}:parseFrigo(txt); if(!p.nom) return;
+  const g=unitGuess(p.nom); const unite=p.unite||g.unite;
+  FE.pending={nom:p.nom,qte:p.qte,unite,opts:[...new Set([unite,...g.opts])].slice(0,4),idx};
+  FE.redraw("q");
 }
 function addFrigo(){
   const inp=$("#frigo"); if(!inp) return false; const vals=inp.value.split(/[,;]/).map(x=>x.trim()).filter(Boolean); inp.value="";
   if(!vals.length) return false;
-  vals.forEach(v=>{ if(!G.frigo.some(f=>fKey(f)===fKey(v))) G.frigo.push(v.slice(0,40)); });
-  drawGen(true); return true;
+  FE.queue=vals.slice(1); openPending(vals[0]); return true;
+}
+function readPendingQty(){ const el=$("#fqv"); if(el&&FE.pending) FE.pending.qte=numVal(el.value); }
+function commitPending(skipQty){
+  const P=FE.pending; if(!P) return; if(!skipQty) readPendingQty();
+  const e={nom:P.nom,qte:skipQty?null:P.qte,unite:skipQty||P.qte===null?null:P.unite};
+  if(P.idx!==null) FE.list[P.idx]=e;
+  else { const j=FE.list.findIndex(f=>fKey(fNom(f))===fKey(e.nom)); if(j>=0) FE.list[j]=e; else FE.list.push(e); }
+  FE.pending=null;
+  if(FE.queue.length){ openPending(FE.queue.shift()); return; }
+  FE.redraw("in");
+}
+function flushFE(){ // avant d'enregistrer ou de générer : rien de tapé ne se perd
+  if(FE&&FE.pending) commitPending(false);
+  const inp=$("#frigo"); if(FE&&inp&&inp.value.trim()){ inp.value.split(/[,;]/).map(x=>x.trim()).filter(Boolean).forEach(v=>{ const p=parseFrigo(v); if(p.nom&&!FE.list.some(f=>fKey(fNom(f))===fKey(p.nom))) FE.list.push(p); }); inp.value=""; }
+  if(FE) FE.queue=[];
+}
+function openFrigoSheet(){
+  const w=W(); if(!w) return;
+  FE={list:clone(w.frigo||[]).map(fNorm),debut:w.debut,pending:null,queue:[],redraw:f=>drawFrigoSheet(f)}; drawFrigoSheet();
+}
+function drawFrigoSheet(f){
+  const w=W();
+  sheet(`<h2>Mon frigo</h2><p class="sub">Semaine du ${dLong(parseIso(w.debut))}. Le plan ne change pas : la liste d'épicerie se met à jour, et un swipe proposera d'abord des recettes qui utilisent ton frigo.</p>
+  <div style="margin-top:14px">${frigoEditor()}</div>
+  <button class="btn primary block" data-act="fsave">${ic("check")} Enregistrer</button>`);
+  focusFE(f);
+}
+function saveFrigo(){
+  flushFE(); const w=W(); if(!w) return; w.frigo=FE.list; save(); closeSheet(); render();
+  toast("Frigo mis à jour. La liste d'épicerie en tient compte.",[["Voir l'épicerie",()=>{hideToast();go("epicerie")}]]);
 }
 function doGen(){
-  const inp=$("#frigo"); if(inp&&inp.value.trim()){ inp.value.split(/[,;]/).map(x=>x.trim()).filter(Boolean).forEach(v=>{ if(!G.frigo.some(f=>fKey(f)===fKey(v))) G.frigo.push(v); }); }
+  flushFE(); G.frigo=FE.list;
   const st=clone(G); closeSheet();
   st.jours.sort((a,b)=>dayIdx(a)-dayIdx(b));
   const wid="sem-"+st.debut;
@@ -998,7 +1139,7 @@ function copyText(txt,ok){
 function copyList(){
   const w=W(); if(!w) return; const {items,frigo,home}=groceries(w); const ck=new Set(w.coches||[]);
   let txt="ÉPICERIE · semaine du "+dLong(parseIso(w.debut))+"\n";
-  const f=frigo.filter(i=>!ck.has(i.key)); if(f.length) txt+=`\nDéjà dans le frigo ? (vérifier la quantité)\n`+f.map(i=>`- ${i.txt} ${i.n}`).join("\n")+"\n";
+  const f=frigo.filter(i=>!ck.has(i.key)&&i.fst==="check"); if(f.length) txt+=`\nDéjà au frigo (vérifier la quantité)\n`+f.map(i=>`- ${i.txt} ${i.n} (au frigo : ${i.have})`).join("\n")+"\n";
   RAYONS.forEach(([k,l])=>{ const g=items.filter(i=>i.ray===k&&!ck.has(i.key)); if(!g.length)return; txt+=`\n${l}\n`+g.map(i=>`- ${i.txt} ${i.n}`).join("\n")+"\n"; });
   const h=home.filter(i=>!ck.has(i.key)); if(h.length) txt+=`\nÀ vérifier à la maison\n`+h.map(i=>`- ${i.n} (${i.txt})`).join("\n")+"\n";
   copyText(txt,()=>toast("Liste copiée. Colle-la dans tes notes."));
@@ -1019,7 +1160,7 @@ function exportData(){
       a_lire:"Fichier exporté de l'App repas V1.5 (app indépendante). Pour écrire une mise à jour, suivre 04c-cycle-mise-a-jour.md du projet « App alimentation ».",
       notes:notesSummary(),
       banque:ORDER.filter(id=>BANK[id]).map(id=>[id,R(id).nom,R(id).categorie,statusOf(id),notesOf(id).length].join(" | ")),
-      semaines:Object.keys(S.weeks).sort().map(id=>S.weeks[id].debut+" : "+slotIds(S.weeks[id]).join(", ")+(S.weeks[id].frigo&&S.weeks[id].frigo.length?" (frigo : "+S.weeks[id].frigo.join(", ")+")":""))
+      semaines:Object.keys(S.weeks).sort().map(id=>S.weeks[id].debut+" : "+slotIds(S.weeks[id]).join(", ")+(S.weeks[id].frigo&&S.weeks[id].frigo.length?" (frigo : "+S.weeks[id].frigo.map(fLabel).join(", ")+")":""))
     },
     etat:S.etat,semaines:S.weeks,notes:S.notes,recettes:S.added,majs:S.majs};
 }
@@ -1162,7 +1303,7 @@ function openPaste(){
 
 /* ---------- Événements ---------- */
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-nav],[data-act],[data-open],[data-tab],[data-f],[data-check],[data-day],[data-rap],[data-nouv],[data-start],[data-v],[data-nc],[data-pick],[data-toast],[data-week],[data-setst],[data-frm],[data-fsug]");
+  const t=e.target.closest("[data-nav],[data-act],[data-open],[data-tab],[data-f],[data-check],[data-day],[data-rap],[data-nouv],[data-start],[data-v],[data-nc],[data-pick],[data-toast],[data-week],[data-setst],[data-fed],[data-fsug],[data-fu],[data-fqq]");
   if(!t) return;
   const d=t.dataset;
   if(d.toast!==undefined){ const a=tActs[+d.toast]; a&&a[1](); return; }
@@ -1172,8 +1313,10 @@ document.addEventListener("click",e=>{
   if(d.tab){ S.bankTab=d.tab; render(); return; }
   if(d.f){ const cats=["batch","rapide","semaine","accompagnement"]; if(S.bankF.has(d.f)) S.bankF.delete(d.f); else { if(cats.includes(d.f)) cats.forEach(c=>S.bankF.delete(c)); S.bankF.add(d.f); } render(); return; }
   if(d.check!==undefined){ e.preventDefault(); const w=W(); const ck=new Set(w.coches||[]); ck.has(d.check)?ck.delete(d.check):ck.add(d.check); w.coches=[...ck]; render(); save(); return; }
-  if(d.frm!==undefined){ G.frigo=G.frigo.filter(x=>x!==d.frm); drawGen(); return; }
-  if(d.fsug!==undefined){ if(!G.frigo.some(f=>fKey(f)===fKey(d.fsug))) G.frigo.push(d.fsug); drawGen(); return; }
+  if(d.fed!==undefined){ if(FE.pending) readPendingQty(); openPending(null,+d.fed); return; }
+  if(d.fsug!==undefined){ openPending(d.fsug); return; }
+  if(d.fu!==undefined){ readPendingQty(); FE.pending.unite=d.fu; FE.redraw("q"); return; }
+  if(d.fqq!==undefined){ const el=$("#fqv"); if(el) el.value=d.fqq; commitPending(false); return; }
   if(d.start){ G.debut=d.start; drawGen(); return; }
   if(d.day){ if(G.jours.includes(d.day)) G.jours=G.jours.filter(x=>x!==d.day); else { G.jours.push(d.day); if(G.jours.length>2) G.jours.shift(); } drawGen(); return; }
   if(d.rap){ G.rapides=+d.rap; drawGen(); return; }
@@ -1190,6 +1333,12 @@ document.addEventListener("click",e=>{
     case "unconfirm": w.confirmee=false; save(); render(); break;
     case "gen": openGen(); break;
     case "fadd": addFrigo(); break;
+    case "fqok": commitPending(false); break;
+    case "fqskip": commitPending(true); break;
+    case "fqcancel": FE.pending=null; FE.queue=[]; FE.redraw("in"); break;
+    case "fqdel": FE.list.splice(FE.pending.idx,1); FE.pending=null; FE.redraw(); break;
+    case "fopen": openFrigoSheet(); break;
+    case "fsave": saveFrigo(); break;
     case "dogen": if(G.jours.length===2) doGen(); break;
     case "tminus": G.cible=Math.max(8,G.cible-1); drawGen(); break;
     case "tplus": G.cible=Math.min(24,G.cible+1); drawGen(); break;
@@ -1205,6 +1354,8 @@ document.addEventListener("click",e=>{
     case "paste": openPaste(); break;
     case "readpaste": { const ta=$("#pastetxt"); const v=ta?ta.value:""; closeSheet(); readImport(v); break; }
     case "applyimp": applyImport(); break;
+    case "delweek": { if(!w) break; const copy=clone(w); delete S.weeks[w.id]; S.weekId=pickCurrentWeek(); save(); render(); window.scrollTo(0,0);
+      toast(`Semaine du ${dLong(parseIso(copy.debut))} supprimée.`,[["Annuler",()=>{S.weeks[copy.id]=copy;S.weekId=copy.id;save();render();hideToast();}]],8000); break; }
     case "v1": loadV1(); break;
   }
 });
@@ -1214,10 +1365,10 @@ document.addEventListener("change",e=>{
 });
 document.addEventListener("input",e=>{
   if(e.target.id==="q"){ S.q=e.target.value; const pos=e.target.selectionStart; render(); const q=$("#q"); q.focus(); try{q.setSelectionRange(pos,pos)}catch(_){} }
-  if(e.target.id==="frigo"&&/[,;]/.test(e.target.value)) addFrigo();
 });
 document.addEventListener("keydown",e=>{
   if(e.key==="Enter"&&e.target.id==="frigo"){ e.preventDefault(); addFrigo(); return; }
+  if(e.key==="Enter"&&e.target.id==="fqv"){ e.preventDefault(); commitPending(false); return; }
   if(e.key==="Escape"){ if($("#sheet").innerHTML) closeSheet(); else if(S.fiche) closeFiche(); }
   if((e.key==="Enter"||e.key===" ")&&e.target.classList&&e.target.classList.contains("meal-fg")&&e.target.dataset.slot!==undefined){ e.preventDefault(); openFiche(W().creneaux[+e.target.dataset.slot].id); }
 });
