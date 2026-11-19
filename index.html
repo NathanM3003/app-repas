@@ -331,7 +331,7 @@ textarea{width:100%;margin-top:12px;border:1.5px solid var(--line);background:va
    Banque : recettes.json + fiches importées · Données : ce cellulaire (localStorage)
    Aucune IA dans l'app : Claude intervient par fichiers (Exporter → conversation → Importer)
    ========================================================= */
-const APP_VERSION="1.6.0";
+const APP_VERSION="1.6.1";
 const LS_KEY="appRepas";
 
 /* ---------- Icônes ---------- */
@@ -630,6 +630,12 @@ function frigoIdeas(debut){
   const prev=Object.keys(S.weeks).filter(id=>S.weeks[id].debut<debut).sort().pop(); if(!prev) return [];
   const pw=S.weeks[prev]; const out=[]; const clean=n=>n.replace(/\s*\(.*\)\s*/g," ").trim();
   const skip=new Set(pw.sansAchat||[]);
+  // ce qui était dans le frigo de la semaine d'avant, moins ce que les repas faits (ou pas encore cochés) ont utilisé
+  if(pw.frigo&&pw.frigo.length){ const {frLeft}=groceries({...pw,sansAchat:[],creneaux:pw.creneaux.filter(s=>s.fait!==false)});
+    frLeft.forEach(t=>{ if(t.qte===null||t.qte===undefined||!["g","ml","unité"].includes(t.unite)){ out.push(t.nom); return; }
+      if(!(t.left>0)||t.left<t.qte*.1) return;   // tout utilisé
+      const q=t.unite==="unité"?Math.round(t.left*2)/2:Math.round(t.left/(t.unite==="g"?10:5))*(t.unite==="g"?10:5); if(!q) return;
+      out.push(t.unite==="unité"?`${num(q)} ${t.nom}`:`${num(q)} ${t.unite} ${deOf(t.nom)}${t.nom}`); }); }
   const notDone=pw.creneaux.filter(s=>s.fait===false&&s.id&&R(s.id)&&!skip.has(s.id));   // achetée mais pas cuisinée
   if(notDone.length){ const {items}=groceries({...pw,frigo:[],creneaux:notDone});
     items.forEach(it=>{ if(["fl","lo","vp"].includes(it.ray)) out.push(clean(it.n)); }); }
@@ -692,7 +698,7 @@ function groceries(w){
     const rp={}; rest.forEach(x=>{rp[x.c]={q:x.q,u:x.u};}); pkgInfo(rp);
   });
   const inFr=i=>i.fst==="ok"||i.fst==="check";
-  return {items:items.filter(i=>i.ray!=="mai"&&!inFr(i)),frigo:items.filter(inFr),home:items.filter(i=>i.ray==="mai")};
+  return {items:items.filter(i=>i.ray!=="mai"&&!inFr(i)),frigo:items.filter(inFr),home:items.filter(i=>i.ray==="mai"),frLeft:fr};
 }
 
 /* ---------- Rendu ---------- */
